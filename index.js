@@ -1,47 +1,42 @@
-import express from "express";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import OpenAI from "openai";
-import { dates } from "./utils/dates.js"; // your dates module
+import { dates } from "./utils/dates.js";
 
 dotenv.config();
 
-const app = express();
-app.use(express.json()); // parse JSON bodies
-
 const openai = new OpenAI({ apiKey: process.env.OPEN_AI_API_KEY });
 
-app.post("/report", async (req, res) => {
-  const { tickers } = req.body; // expect an array of tickers
-  if (!tickers || tickers.length === 0) {
-    return res.status(400).json({ error: "No tickers provided." });
-  }
+// Example tickers
+const tickersArr = ["AAPL", "TSLA"];
 
+async function fetchStockData(tickers) {
   try {
-    // Fetch stock data for all tickers
-    const stockDataArr = await Promise.all(
+    const stockData = await Promise.all(
       tickers.map(async (ticker) => {
         const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${dates.startDate}/${dates.endDate}?apiKey=${process.env.POLYGON_API_KEY}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch ${ticker}`);
-        const data = await response.json();
-        return { ticker, data };
+        if (!response.ok) throw new Error(`Error fetching ${ticker}`);
+        return { ticker, data: await response.json() };
       })
     );
+    return stockData;
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return null;
+  }
+}
 
-    // Optional: Send stock data to OpenAI for report
+async function generateReport(stockData) {
+  try {
     const aiResponse = await openai.chat.completions.create({
       model: "gpt-4.1",
       messages: [
-        {
-          role: "system",
-          content:
-            "You are a financial analyst. Analyze stock data and give advice on whether to buy or sell each stock.",
-        },
+        { role: "system", content: "You are a financial analyst." },
         {
           role: "user",
-          content: `Analyze this stock data and provide a short buy/sell recommendation:\n${JSON.stringify(
-            stockDataArr,
+          content: `Analyze this stock data and give buy/sell recommendations:\n${JSON.stringify(
+            stockData,
             null,
             2
           )}`,
@@ -49,16 +44,18 @@ app.post("/report", async (req, res) => {
       ],
     });
 
-    const report = aiResponse.choices[0].message.content;
-
-    res.json({ report, stockData: stockDataArr });
+    return aiResponse.choices[0].message.content;
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("OpenAI error:", err);
   }
-});
+}
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+async function main() {
+  const stockData = await fetchStockData(tickersArr);
+  if (stockData) {
+    const report = await generateReport(stockData);
+    console.log("Stock Report:\n", report);
+  }
+}
+
+main();
