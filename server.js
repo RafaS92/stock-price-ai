@@ -58,6 +58,9 @@ app.post("/generate-report", async (req, res) => {
     const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages,
+      temperature: 1.1,
+      presence_penalty: 0,
+      frequency_penalty: 0,
     });
 
     const report = response.choices[0].message.content;
