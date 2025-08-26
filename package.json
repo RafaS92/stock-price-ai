@@ -4,10 +4,26 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "git-filter-repo": "^0.0.30",
     "node-fetch": "^3.3.2",
     "openai": "^4.104.0"
-  }
+  },
+  "name": "stock-prediction-ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RafaS92/stock-price-ai.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/RafaS92/stock-price-ai/issues"
+  },
+  "homepage": "https://github.com/RafaS92/stock-price-ai#readme"
 }
