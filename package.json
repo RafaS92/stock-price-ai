@@ -1,0 +1,13 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "git-filter-repo": "^0.0.30",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.104.0"
+  }
+}

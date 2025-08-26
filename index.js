@@ -1,76 +1,64 @@
-import { dates } from "/utils/dates";
+import express from "express";
+import dotenv from "dotenv";
+import fetch from "node-fetch";
+import OpenAI from "openai";
+import { dates } from "./utils/dates.js"; // your dates module
 
-const tickersArr = [];
+dotenv.config();
 
-const generateReportBtn = document.querySelector(".generate-report-btn");
+const app = express();
+app.use(express.json()); // parse JSON bodies
 
-generateReportBtn.addEventListener("click", fetchStockData);
+const openai = new OpenAI({ apiKey: process.env.OPEN_AI_API_KEY });
 
-document.getElementById("ticker-input-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const tickerInput = document.getElementById("ticker-input");
-  if (tickerInput.value.length > 2) {
-    generateReportBtn.disabled = false;
-    const newTickerStr = tickerInput.value;
-    tickersArr.push(newTickerStr.toUpperCase());
-    tickerInput.value = "";
-    renderTickers();
-  } else {
-    const label = document.getElementsByTagName("label")[0];
-    label.style.color = "red";
-    label.textContent =
-      "You must add at least one ticker. A ticker is a 3 letter or more code for a stock. E.g TSLA for Tesla.";
+app.post("/report", async (req, res) => {
+  const { tickers } = req.body; // expect an array of tickers
+  if (!tickers || tickers.length === 0) {
+    return res.status(400).json({ error: "No tickers provided." });
+  }
+
+  try {
+    // Fetch stock data for all tickers
+    const stockDataArr = await Promise.all(
+      tickers.map(async (ticker) => {
+        const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${dates.startDate}/${dates.endDate}?apiKey=${process.env.POLYGON_API_KEY}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch ${ticker}`);
+        const data = await response.json();
+        return { ticker, data };
+      })
+    );
+
+    // Optional: Send stock data to OpenAI for report
+    const aiResponse = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a financial analyst. Analyze stock data and give advice on whether to buy or sell each stock.",
+        },
+        {
+          role: "user",
+          content: `Analyze this stock data and provide a short buy/sell recommendation:\n${JSON.stringify(
+            stockDataArr,
+            null,
+            2
+          )}`,
+        },
+      ],
+    });
+
+    const report = aiResponse.choices[0].message.content;
+
+    res.json({ report, stockData: stockDataArr });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-function renderTickers() {
-  const tickersDiv = document.querySelector(".ticker-choice-display");
-  tickersDiv.innerHTML = "";
-  tickersArr.forEach((ticker) => {
-    const newTickerSpan = document.createElement("span");
-    newTickerSpan.textContent = ticker;
-    newTickerSpan.classList.add("ticker");
-    tickersDiv.appendChild(newTickerSpan);
-  });
-}
-
-const loadingArea = document.querySelector(".loading-panel");
-const apiMessage = document.getElementById("api-message");
-
-async function fetchStockData() {
-  document.querySelector(".action-panel").style.display = "none";
-  loadingArea.style.display = "flex";
-  try {
-    const stockData = await Promise.all(
-      tickersArr.map(async (ticker) => {
-        const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${dates.startDate}/${dates.endDate}?apiKey=${process.env.POLYGON_API_KEY}`;
-        const response = await fetch(url);
-        const data = await response.text();
-        const status = await response.status;
-        if (status === 200) {
-          apiMessage.innerText = "Creating report...";
-          return data;
-        } else {
-          loadingArea.innerText = "There was an error fetching stock data.";
-        }
-      })
-    );
-    fetchReport(stockData.join(""));
-  } catch (err) {
-    loadingArea.innerText = "There was an error fetching stock data.";
-    console.error("error: ", err);
-  }
-}
-
-async function fetchReport(data) {
-  /** AI goes here **/
-}
-
-function renderReport(output) {
-  loadingArea.style.display = "none";
-  const outputArea = document.querySelector(".output-panel");
-  const report = document.createElement("p");
-  outputArea.appendChild(report);
-  report.textContent = output;
-  outputArea.style.display = "flex";
-}
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

@@ -1,9 +1,9 @@
 html,
 body {
     margin: 0;
-    padding: 0;
+    padding: 32px 0px;
     font-family: 'Poppins', sans-serif;
-    background-color: #f6f6f6;
+    background-color: #eae3e3;
 }
 
 * {
@@ -139,6 +139,8 @@ input[type="text"] {
     font-weight: 500;
     letter-spacing: .09em;
     font-size: 105%;
+    border-radius: 10px;
+    color: #000000;
 }
 
 /* ticker display (ensure comma separated) */
